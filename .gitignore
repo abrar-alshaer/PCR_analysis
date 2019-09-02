@@ -56,3 +56,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# ignore data
+*.csv
+
+# ignore pycharm files
+*.idea

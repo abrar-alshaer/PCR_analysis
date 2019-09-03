@@ -99,116 +99,47 @@ def Ct_calculations_print(sampleAll, set_nameAll, CqAvgAll, CqDevAll, fileNum, h
     return df_sort
 
 
-def Ct_calculations_merge(df_sorted):  # , df_sort2 add funcion as file no increase
-    means = []
-    set_names_merge = []
-
+def means_sem_calculation(df_sorted):
+    """
+    Merge all the files and calculate the average and SEM for each biological set.
+    :param df_sorted: List of DataFrame
+    :return: DataFrame
+    """
+    merged_df = pd.DataFrame(columns=['Sample IDs', 'Biological Sets', 'Cq Averages', 'Cq Standard Deviations'])
     for df in df_sorted:
-        set_nameAll = df['Biological Sets'].tolist()
-        CqAvgAll = df['Cq Averages'].tolist()
+        merged_df = merged_df.append(df, ignore_index=True, sort=False)
+
+    means = merged_df.groupby('Biological Sets')['Cq Averages'].mean()
+    # Group by the values in Biological Sets and apply the sem function to the values in the group
+    SEMs = merged_df.groupby('Biological Sets')['Cq Averages'].apply(lambda x: stats.sem(x.values))
+
+    final_df = pd.DataFrame(dict(Mean = means, SEM = SEMs)).reset_index()
+
+    return final_df
 
 
-    print("CALC MERGE DATAFRAME 1\n")
-    print(df_sort1)
-    set_nameAll_1 = df_sort1['Biological Sets'].tolist()
-    CqAvgAll_1 = df_sort1['Cq Averages'].tolist()
-    print("SET NAME ALL 1:\n", set_nameAll_1)
-    # print "CALC MERGE DATAFRAME 2\n"
-    # print df_sort2
-    # set_nameAll_2 = df_sort2['Biological Sets'].tolist()
-    # CqAvgAll_2 = df_sort2['Cq Averages'].tolist()
-    # print set_nameAll_2
+def delta_delta_ct(input_df, calibrator):
+    """
+    Calculate the delta delta ct for each biological set.
+    :param input_df: DataFrame with the mean/SEM of each biological set
+    :param calibrator: What variable that is the calibrator for the dataset.  Set by user at runtime
+    :return: DataFrame
+    """
 
-    # print "CALC MERGE DATAFRAME 3\n"
-    # print df_sort3
-    # set_nameAll_3 = df_sort3['Biological Sets'].tolist()
-    # CqAvgAll_3 = df_sort3['Cq Averages'].tolist()
-    # print set_nameAll_3
+    calibrator_mean = input_df['Mean'].loc[input_df['Biological Sets'] == calibrator].values[0]
 
-    for i in range(0, len(set_nameAll_1)):  # loop through all biological sets
-        set_names_merge.append(set_nameAll_1[i])
-        means.append((CqAvgAll_1[i]) / 1.0)  # +CqAvgAll_2[i]/2 dividing by 6 because there are 6 replicates - we are getting the average of the Ct calculations across all the files
-        print(set_nameAll_1[i])  # set_nameAll_2[i]    # add  set_nameAll_2[i] with each file
-    # print results
-    for j in range(0, len(set_names_merge)):  # loop and print results
-        print(set_names_merge[j], means[j])
-    return set_names_merge, means
+    input_df['ddCt'] = input_df['Mean'].apply(lambda x: x - calibrator_mean)
+
+    return input_df
 
 
-def sem_calculation(set_names_merge, means):
-    # Initialize the list of biological sets
-    sets = ['IS-0', 'IS-5', 'ID-0', 'ID-5', 'IX-0', 'IX-5']  # MAKE SURE CALIBRATOR IS FIRST VALUE IN THE LIST
-    IS_0 = []
-    IS_5 = []
-    ID_0 = []
-    ID_5 = []
-    IX_0 = []
-    IX_5 = []
-    SEMs = []
-    set_averages = []
-    for i in range(0, len(set_names_merge)):  # loop through and add to each set it's corresponding values
-        if set_names_merge[i] == 'IS-0':
-            IS_0.append(means[i])
-        if set_names_merge[i] == 'IS-5':
-            IS_5.append(means[i])
-        if set_names_merge[i] == 'ID-0':
-            ID_0.append(means[i])
-        if set_names_merge[i] == 'ID-5':
-            ID_5.append(means[i])
-        if set_names_merge[i] == 'IX-0':
-            IX_0.append(means[i])
-        if set_names_merge[i] == 'IX-5':
-            IX_5.append(means[i])
-    # taking the mean of each set
-    IS_0_avg = sum(IS_0) / len(IS_0)
-    IS_5_avg = sum(IS_5) / len(IS_5)
-    ID_0_avg = sum(ID_0) / len(ID_0)
-    ID_5_avg = sum(ID_5) / len(ID_5)
-    IX_0_avg = sum(IX_0) / len(IX_0)
-    IX_5_avg = sum(IX_5) / len(IX_5)
-    # averages combined into list
-    set_averages.append(IS_0_avg)
-    set_averages.append(IS_5_avg)
-    set_averages.append(ID_0_avg)
-    set_averages.append(ID_5_avg)
-    set_averages.append(IX_0_avg)
-    set_averages.append(IX_5_avg)
-    # SEMs calculated and appended to list
-    SEMs.append(stats.sem(IS_0))
-    SEMs.append(stats.sem(IS_5))
-    SEMs.append(stats.sem(ID_0))
-    SEMs.append(stats.sem(ID_5))
-    SEMs.append(stats.sem(IX_0))
-    SEMs.append(stats.sem(IX_5))
-    for j in range(0, len(set_averages)):
-        print("Biological Set:", sets[j], "Average:", set_averages[j], "SEM:", SEMs[j])
-    return sets, set_averages, SEMs
+def fold_change(input_df):
 
+    input_df['FC'] = input_df['ddCt'].apply(lambda x: 2 ** (x * -1))
+    input_df['FC Upper'] = input_df.apply(lambda x: 2 ** ((x['ddCt'] + x['SEM']) * -1), axis=1)
+    input_df['FC lower'] = input_df.apply(lambda x: 2 ** ((x['ddCt'] - x['SEM']) * -1), axis=1)
 
-def delta_delta_Ct(sets, set_averages):
-    calibrator_sample = set_averages[0]  # corresponds to IS_0 since it's the first value in the list [index 0]
-    dCt_calc = []
-    dCt_sets = []
-    for i in range(0, len(sets)):
-        dCt_sets.append(sets[i])
-        dCt_calc.append(set_averages[i] - calibrator_sample)
-        print(sets[i], set_averages[i] - calibrator_sample)
-    return dCt_sets, dCt_calc
-
-
-def fold_change(dCt_sets, dCt_calc, SEMs):
-    FC = []
-    FC_range_1 = []
-    FC_range_2 = []
-    FC_sets = dCt_sets
-    for i in range(0, len(dCt_calc)):
-        print("Biological Set:", FC_sets[i], "Fold Change:", 2 ** (dCt_calc[i] * -1), "FC Range:",
-              2 ** ((dCt_calc[i] + SEMs[i]) * -1), "&", 2 ** ((dCt_calc[i] - SEMs[i]) * -1))
-        FC.append(2 ** (dCt_calc[i] * -1))  # fold change calculation
-        FC_range_1.append(2 ** ((dCt_calc[i] + SEMs[i]) * -1))  # fold change range 1
-        FC_range_2.append(2 ** ((dCt_calc[i] - SEMs[i]) * -1))  # fold change range 2
-    return FC_sets, FC, FC_range_1, FC_range_2
-
+    return input_df
 
 def yes_no(question):
     response = input(question + "(y/n): ").lower().strip()

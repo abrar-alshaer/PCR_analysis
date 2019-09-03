@@ -11,15 +11,17 @@ import pandas as pd
 from pandas import DataFrame
 import numpy as np
 from scipy import stats
-import os, sys, time
+import os
+import sys
+import time
 
 from PCR_functions import *
 
 
-def __main__():
-    reference = input("What is your reference? Make sure to include quotes: ")
+def main():
+    reference = input("What is your reference?: ")
     print("Your Reference: ", reference) #  GAPDH
-    one_target = input("What is your target? Make sure to include quotes: ")
+    one_target = input("What is your target?: ")
     print("Your target: ", one_target) #  AvUCP
 
     # Create list of data files and check if correct
@@ -31,19 +33,19 @@ def __main__():
                 data_files.append(file)
 
     print(data_files)
-    if yes_no("Are the data files listed above correct?"):
+    if yes_no("Are the data files listed above correct? [y/n]: "):
         print("Using printed files")
     else:
         print("Please correct files... \n.\n.\n...Exiting Program")
 
     # Check to see if merge process needs to be run
     merge = False
-    if yes_no("Would you like to calculate ddCt for these datasets?"):
+    if yes_no("Would you like to calculate ddCt for these datasets? [y/n]: "):
         print("ddCt calculations will be run")
         merge = True
         time.sleep(3)
     else:
-        print("ddCt calculations will be run")
+        print("ddCt calculations will NOT be run")
         time.sleep(3)
 
     # Get the Cq Calculations csv file name
@@ -69,32 +71,27 @@ def __main__():
 
     if merge:  # Only runs if merge is True
 
-        # Calling function for merger of PCR Files
+        input_cal = input("What is your calibrator?: ")
+
+        # Calling function for merger of PCR Files and mean/SEM calculation for each set
         print("\n********PCR Calculations Merge*************\n")
-        set_names_merge_f, means_f = Ct_calculations_merge(sorted_dfs)  # print_calc2 add print calc for file 4
+        df = means_sem_calculation(sorted_dfs)
+        print("\n********PCR Averages & SEM*************\n")
+        print(df)
 
+        # Calling function for calculations delta delta Ct
+        print("\n********PCR Delta Delta Ct*************\n")
+        df = delta_delta_ct(df, calibrator=input_cal) #FpreA
+        print(df)
 
+        # Calling function for calculating fold change
+        print("\n********PCR Fold Change*************\n")
+        df = fold_change(df)
 
-    # Calling function for merger of PCR Files
-    # print "\n********PCR Calculations Merge*************\n"
-    # set_names_merge_f, means_f = Ct_calculations_merge(print_calc1) # print_calc2 add print calc for file 4
+        # Final DataFrame
+        print("\n********Fold Change File*************\n")
+        print(df)  #print first 5 rows of dataframe
+        df.to_csv(os.path.join("output", "fold_changes_output.csv"))
 
-    # Calling function for calculations of mean and SEM of PCR Files
-    # print "\n********PCR Averages & SEM*************\n"
-    # bio_sets, avg, std_err = sem_calculation(set_names_merge_f, means_f)
-
-    # Calling function for calculations delta delta Ct
-    # print "\n********PCR Delta Delta Ct*************\n"
-    # delta_sets, delta_calc = delta_delta_Ct(bio_sets, avg)
-
-    # Calling function for calculating fold change
-    # print "\n********PCR Fold Change*************\n"
-    # fold_c_sets, fold_c_calc, fold_c_r1, fold_c_r2 = fold_change(delta_sets, delta_calc, std_err)
-
-    # Final DataFrame
-    # print "\n********Fold Change File*************\n"
-    # df_final = pd.DataFrame({'Biological Sets': fold_c_sets, 'Fold Change': fold_c_calc, 'Fold Change Range 1': fold_c_r1, 'Fold Change Range 2': fold_c_r2, 'SEM': std_err}) #creates a dataframe
-    # print df_final.head() #print first 5 rows of dataframe
-
-    # df_final.to_csv('E1_FB_IL-1b_fold_changes.csv') #send dataframe to a file
-    ## *_final_output.csv
+if __name__ == "__main__":
+    main()

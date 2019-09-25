@@ -1,7 +1,6 @@
 # Author: Eric Helfrich
 # Based off of the original code of Abrar Al-Shaer
-# This file includes the the functions originally created by Abrar and updated to python 3
-# and changed to meet updated requirements needed by the Smith Lab and UNC
+# This file includes the updated functions changed to meet updated requirements needed by the Smith Lab and UNC
 
 # Imports
 import pandas as pd
@@ -47,6 +46,7 @@ def rows_init_store(dataframe):
     return target, content, CqAvg, CqDev, sample, set_name  # function returns lists as output
 
 
+# TODO: Update CT_calculations function to use Pandas in order to increase readability
 def Ct_calculations(target, content, CqAvg, CqDev, sample, set_name, reference, one_target):
     print("--------------Ct Calculation Inputs---------------")
     CqAvgAll = []
